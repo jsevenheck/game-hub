@@ -1,0 +1,23 @@
+{
+  "name": "@game-hub/platform-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup src/index.ts --format esm --clean",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@fastify/cors": "11.2.0",
+    "fastify": "5.7.1",
+    "socket.io": "4.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.7",
+    "tsup": "8.5.1",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3"
+  }
+}

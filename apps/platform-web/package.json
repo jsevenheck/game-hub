@@ -1,0 +1,26 @@
+{
+  "name": "@game-hub/platform-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist node_modules/.vite *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@game-hub/platform-sdk": "workspace:*",
+    "pinia": "3.0.4",
+    "vue": "3.5.27",
+    "vue-router": "4.6.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "6.0.3",
+    "typescript": "5.9.3",
+    "vite": "7.3.1",
+    "vite-tsconfig-paths": "^6.0.4",
+    "vue-tsc": "3.2.2"
+  }
+}

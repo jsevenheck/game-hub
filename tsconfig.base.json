@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "jsx": "preserve",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@game-hub/contracts": ["packages/contracts/src/index.ts"],
+      "@game-hub/contracts/*": ["packages/contracts/src/*"],
+      "@game-hub/platform-sdk": ["packages/platform-sdk/src/index.ts"],
+      "@game-hub/platform-sdk/*": ["packages/platform-sdk/src/*"]
+    }
+  }
+}
