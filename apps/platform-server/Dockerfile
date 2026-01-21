@@ -3,8 +3,8 @@
 # Stage 1: Build stage
 FROM node:22.12.0-alpine AS builder
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@10.28.1 --activate
+# Install pnpm globally
+RUN npm install -g pnpm@10.28.1
 
 WORKDIR /app
 
@@ -26,8 +26,8 @@ RUN pnpm build
 # Stage 2: Production stage
 FROM node:22.12.0-alpine AS production
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@10.28.1 --activate
+# Install pnpm globally
+RUN npm install -g pnpm@10.28.1
 
 WORKDIR /app
 
