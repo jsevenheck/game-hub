@@ -54,7 +54,7 @@ services:
   #     - POSTGRES_USER=mygame
   #     - POSTGRES_PASSWORD=mygame_dev
   #   ports:
-  #     - "5432:5432"  # Use 5433, 5434, etc. if you have multiple DBs
+  #     - "5433:5432"  # Use 5433, 5434, etc. if you have multiple DBs
   #   volumes:
   #     - mygame-db-data:/var/lib/postgresql/data
   #     # Optional: Mount init scripts
@@ -70,7 +70,7 @@ services:
   #   image: redis:7-alpine
   #   container_name: mygame-redis
   #   ports:
-  #     - "6379:6379"  # Use 6380, 6381, etc. if you have multiple Redis instances
+  #     - "6380:6379"  # Use 6380, 6381, etc. if you have multiple Redis instances
   #   volumes:
   #     - mygame-redis-data:/data
   #   networks:

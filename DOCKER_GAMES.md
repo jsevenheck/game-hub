@@ -81,7 +81,7 @@ services:
       - POSTGRES_USER=mygame
       - POSTGRES_PASSWORD=mygame_dev
     ports:
-      - "5432:5432"
+      - "5433:5432"  # Use non-standard port to avoid conflicts
     volumes:
       - mygame-db-data:/var/lib/postgresql/data
     networks:
