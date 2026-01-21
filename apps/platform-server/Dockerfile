@@ -40,7 +40,7 @@ COPY packages ./packages
 COPY apps/platform-server/package.json ./apps/platform-server/
 
 # Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Copy built application from builder stage
 COPY --from=builder /app/apps/platform-server/dist ./apps/platform-server/dist

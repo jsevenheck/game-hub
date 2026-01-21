@@ -26,6 +26,9 @@ RUN pnpm build
 # Stage 2: Production stage with nginx
 FROM nginx:alpine AS production
 
+# Install curl for health checks
+RUN apk add --no-cache curl
+
 # Copy built assets from builder stage
 COPY --from=builder /app/apps/platform-web/dist /usr/share/nginx/html
 
