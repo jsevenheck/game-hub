@@ -1,6 +1,8 @@
 # Docker Setup for Game-Hub
 
-This guide explains how to use Docker to run the Game-Hub application in both development and production environments.
+This guide explains how to use Docker to run the Game-Hub **platform** (frontend + backend) in both development and production environments.
+
+**📦 For adding Docker support to individual games**, see [DOCKER_GAMES.md](./DOCKER_GAMES.md)
 
 ## Prerequisites
 
@@ -264,6 +266,43 @@ curl http://localhost:3000/health
 2. **Layer caching**: Organize Dockerfile commands to maximize cache hits
 3. **Multi-stage builds**: Keep production images lean
 4. **Volume mounts**: Use for development hot reload only, not production
+
+## Extending for Individual Games
+
+The base Docker setup handles the **platform** services (frontend + backend). If your games need their own backend services, databases, or other infrastructure:
+
+**➡️ See [DOCKER_GAMES.md](./DOCKER_GAMES.md) for detailed instructions**
+
+### Quick Overview
+
+**Games with frontend only** → No Docker setup needed (runs inside platform-web)
+
+**Games with backend services** → Use `docker-compose.override.yml`:
+
+```yaml
+# docker-compose.override.yml (auto-merged with docker-compose.yml)
+version: '3.8'
+
+services:
+  myGame-server:
+    build:
+      context: .
+      dockerfile: games/myGame/server/Dockerfile
+    ports:
+      - "3001:3000"
+    networks:
+      - game-hub-network
+    depends_on:
+      - platform-server
+
+networks:
+  game-hub-network:
+    external: true
+```
+
+Then simply run `docker-compose up` - your game services start automatically!
+
+**No manual edits needed** when adding new games - just create override files for games that need Docker services.
 
 ## Architecture
 
