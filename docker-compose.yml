@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # Backend API Server
+  platform-server:
+    build:
+      context: .
+      dockerfile: apps/platform-server/Dockerfile.dev
+    container_name: game-hub-server
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - HOST=0.0.0.0
+      - CORS_ORIGIN=http://localhost:5173
+      - SOCKETIO_CORS_ORIGIN=http://localhost:5173
+    volumes:
+      # Mount source code for hot reload
+      - ./apps/platform-server/src:/app/apps/platform-server/src
+      - ./packages:/app/packages
+      # Exclude node_modules to avoid conflicts
+      - /app/node_modules
+      - /app/apps/platform-server/node_modules
+    networks:
+      - game-hub-network
+    command: pnpm dev
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Web Application
+  platform-web:
+    build:
+      context: .
+      dockerfile: apps/platform-web/Dockerfile.dev
+    container_name: game-hub-web
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:3000
+      - VITE_SOCKET_URL=http://localhost:3000
+    volumes:
+      # Mount source code for hot reload
+      - ./apps/platform-web/src:/app/apps/platform-web/src
+      - ./apps/platform-web/index.html:/app/apps/platform-web/index.html
+      - ./apps/platform-web/vite.config.ts:/app/apps/platform-web/vite.config.ts
+      - ./packages:/app/packages
+      # Exclude node_modules to avoid conflicts
+      - /app/node_modules
+      - /app/apps/platform-web/node_modules
+    networks:
+      - game-hub-network
+    depends_on:
+      - platform-server
+    command: pnpm dev
+    restart: unless-stopped
+
+networks:
+  game-hub-network:
+    driver: bridge
