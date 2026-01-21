@@ -2,7 +2,7 @@
 
 This guide explains how to use Docker to run the Game-Hub **platform** (frontend + backend) in both development and production environments.
 
-**📦 For adding Docker support to individual games**, see [DOCKER_GAMES.md](./DOCKER_GAMES.md)
+**📦 For adding Docker support to individual games**, see [DOCKER_GAMES.md](DOCKER_GAMES.md)
 
 ## Prerequisites
 
@@ -271,7 +271,7 @@ curl http://localhost:3000/health
 
 The base Docker setup handles the **platform** services (frontend + backend). If your games need their own backend services, databases, or other infrastructure:
 
-**➡️ See [DOCKER_GAMES.md](./DOCKER_GAMES.md) for detailed instructions**
+**➡️ See [DOCKER_GAMES.md](DOCKER_GAMES.md) for detailed instructions**
 
 ### Quick Overview
 

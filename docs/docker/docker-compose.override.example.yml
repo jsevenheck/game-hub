@@ -7,11 +7,11 @@
 # you run `docker-compose up`.
 #
 # USAGE:
-# 1. Copy this file: cp docker-compose.override.example.yml docker-compose.override.yml
+# 1. Copy this file: cp docs/docker/docker-compose.override.example.yml docker-compose.override.yml
 # 2. Uncomment and configure the game services you need
 # 3. Run: docker-compose up
 #
-# See DOCKER_GAMES.md for detailed documentation
+# See docs/docker/DOCKER_GAMES.md for detailed documentation
 
 version: '3.8'
 

@@ -29,7 +29,7 @@ Monorepo for the platform (server + web) and multiple games that plug into it.
 
 ## Docker Support
 
-Docker is fully supported for both development and production environments. See [DOCKER.md](./DOCKER.md) for detailed instructions.
+Docker is fully supported for both development and production environments. See [docs/docker/DOCKER.md](./docs/docker/DOCKER.md) for detailed instructions.
 
 ### Quick Start with Docker
 

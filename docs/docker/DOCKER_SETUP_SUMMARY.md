@@ -181,7 +181,7 @@ For production deployment:
 
 ## Troubleshooting
 
-See [DOCKER.md](./DOCKER.md) for detailed troubleshooting guide including:
+See [DOCKER.md](DOCKER.md) for detailed troubleshooting guide including:
 - Port conflicts
 - Permission issues
 - Container won't start

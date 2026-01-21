@@ -238,13 +238,13 @@ If you want to commit your game's Docker setup:
 
 ```bash
 # Create a template override file
-cp docker-compose.override.yml docker-compose.override.example.yml
+cp docker-compose.override.yml docs/docker/docker-compose.override.example.yml
 
 # Add to git
-git add docker-compose.override.example.yml
+git add docs/docker/docker-compose.override.example.yml
 
 # Users copy it locally
-cp docker-compose.override.example.yml docker-compose.override.yml
+cp docs/docker/docker-compose.override.example.yml docker-compose.override.yml
 ```
 
 ## Port Management
@@ -413,5 +413,5 @@ networks:
 ## Support
 
 For more Docker help, see:
-- [DOCKER.md](./DOCKER.md) - Platform Docker guide
+- [DOCKER.md](DOCKER.md) - Platform Docker guide
 - [Docker Compose documentation](https://docs.docker.com/compose/)
