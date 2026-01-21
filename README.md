@@ -26,3 +26,23 @@ Monorepo for the platform (server + web) and multiple games that plug into it.
 ## Requirements
 - Node `>=22.12.0`
 - pnpm (see `package.json` `packageManager`)
+
+## Docker Support
+
+Docker is fully supported for both development and production environments. See [docs/docker/DOCKER.md](./docs/docker/DOCKER.md) for detailed instructions.
+
+### Quick Start with Docker
+
+**Development:**
+```bash
+docker-compose up
+```
+- Frontend: http://localhost:5173
+- Backend: http://localhost:3000
+
+**Production:**
+```bash
+docker-compose -f docker-compose.prod.yml up --build
+```
+- Frontend: http://localhost
+- Backend: http://localhost:3000

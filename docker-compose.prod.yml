@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Backend API Server (Production)
+  platform-server:
+    build:
+      context: .
+      dockerfile: apps/platform-server/Dockerfile
+    container_name: game-hub-server-prod
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOST=0.0.0.0
+      - CORS_ORIGIN=http://localhost
+      - SOCKETIO_CORS_ORIGIN=http://localhost
+    networks:
+      - game-hub-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Web Application (Production)
+  platform-web:
+    build:
+      context: .
+      dockerfile: apps/platform-web/Dockerfile
+    container_name: game-hub-web-prod
+    ports:
+      - "80:80"
+    networks:
+      - game-hub-network
+    depends_on:
+      - platform-server
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  game-hub-network:
+    driver: bridge
