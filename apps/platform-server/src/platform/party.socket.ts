@@ -13,6 +13,7 @@ import {
 } from "@game-hub/contracts";
 import * as partyService from "./party.service.js";
 import * as tokenService from "./token.service.js";
+import { isGameRegistered } from "../games/registry.js";
 
 // Socket data type for our platform sockets
 interface PlatformSocketData {
@@ -273,6 +274,15 @@ export function registerPartyHandlers(io: Server): PlatformNamespace {
         socket.emit("party:error", {
           code: "START_FAILED",
           message: "Please select a game before starting.",
+        });
+        return;
+      }
+
+      // Check if the game is actually implemented/registered
+      if (!isGameRegistered(party.gameId)) {
+        socket.emit("party:error", {
+          code: "GAME_NOT_AVAILABLE",
+          message: `Game "${party.gameId}" is not yet available. Please select a different game.`,
         });
         return;
       }

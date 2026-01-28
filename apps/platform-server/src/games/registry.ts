@@ -24,6 +24,10 @@ export function getGame(gameId: string): GameServerHandler | undefined {
   return gameHandlers.get(gameId);
 }
 
+export function isGameRegistered(gameId: string): boolean {
+  return gameHandlers.has(gameId);
+}
+
 export function getAllGames(): GameDefinition[] {
   return Array.from(gameHandlers.values()).map((h) => h.definition);
 }

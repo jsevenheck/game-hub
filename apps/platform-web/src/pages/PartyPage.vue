@@ -21,18 +21,56 @@ const showJoinForm = computed(() => !partyStore.party);
 const showLobby = computed(() => partyStore.party?.status === "lobby");
 const showGame = computed(() => partyStore.party?.status === "in_game" && partyStore.activeGameSession);
 
-// Available games (stub - in future this could be fetched from server)
-const availableGames = [
-  { id: "werwolf", name: "Werwolf" },
-  { id: "codenames", name: "Codenames" },
-  { id: "demo", name: "Demo Game" },
-];
+// Available games - loaded from server
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? "http://localhost:3000";
+
+interface GameInfo {
+  id: string;
+  name: string;
+  available: boolean; // true if implemented on server
+}
+
+const availableGames = ref<GameInfo[]>([
+  // Default list shown before server responds
+  { id: "werwolf", name: "Werwolf", available: false },
+  { id: "codenames", name: "Codenames", available: false },
+  { id: "demo", name: "Demo Game", available: false },
+]);
+
+// Fetch registered games from server
+async function fetchAvailableGames() {
+  try {
+    const response = await fetch(`${SOCKET_URL}/games`);
+    const data = await response.json();
+    const registeredIds = new Set((data.games as { id: string }[]).map(g => g.id));
+    
+    // Update availability status
+    availableGames.value = availableGames.value.map(game => ({
+      ...game,
+      available: registeredIds.has(game.id),
+    }));
+    
+    // Add any server-registered games not in our list
+    for (const serverGame of data.games as { id: string; name: string }[]) {
+      if (!availableGames.value.find(g => g.id === serverGame.id)) {
+        availableGames.value.push({
+          id: serverGame.id,
+          name: serverGame.name,
+          available: true,
+        });
+      }
+    }
+  } catch (error) {
+    console.warn("Could not fetch available games from server:", error);
+  }
+}
 
 // Initialize with route param
 onMounted(() => {
   if (routePartyId.value) {
     partyIdInput.value = routePartyId.value;
   }
+  fetchAvailableGames();
 });
 
 // Update URL when party changes
@@ -209,13 +247,20 @@ function copyPartyLink() {
             v-for="game in availableGames"
             :key="game.id"
             @click="handleGameSelect(game.id)"
-            :class="{ 'selected': partyStore.party?.gameId === game.id }"
+            :class="{ 
+              'selected': partyStore.party?.gameId === game.id,
+              'unavailable': !game.available
+            }"
             class="game-option"
           >
             {{ game.name }}
+            <span v-if="!game.available" class="coming-soon">Coming Soon</span>
           </button>
         </div>
         <p v-if="!partyStore.party?.gameId" class="hint">Please select a game to start</p>
+        <p v-else-if="!availableGames.find(g => g.id === partyStore.party?.gameId)?.available" class="hint warning">
+          This game is not yet available. Please select a different game.
+        </p>
       </div>
 
       <!-- Game Info (for non-hosts) -->
@@ -228,7 +273,7 @@ function copyPartyLink() {
         <button
           v-if="partyStore.isHost"
           @click="handleStart"
-          :disabled="partyStore.loading || !partyStore.party?.gameId"
+          :disabled="partyStore.loading || !partyStore.party?.gameId || !availableGames.find(g => g.id === partyStore.party?.gameId)?.available"
           class="btn-primary"
         >
           {{ partyStore.loading ? "Starting..." : "Start Game" }}
@@ -531,6 +576,10 @@ button:disabled {
   color: #eee;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .game-option:hover {
@@ -541,6 +590,31 @@ button:disabled {
   border-color: #4fc3f7;
   background-color: #1a2744;
   color: #4fc3f7;
+}
+
+.game-option.unavailable {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.game-option.unavailable:hover {
+  border-color: #666;
+}
+
+.game-option.unavailable.selected {
+  border-color: #e67e22;
+  background-color: #2a2010;
+  color: #e67e22;
+}
+
+.coming-soon {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  background-color: #e67e22;
+  color: #fff;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 600;
 }
 
 .game-info p {
@@ -554,6 +628,10 @@ button:disabled {
   color: #666;
   font-size: 0.9rem;
   font-style: italic;
+}
+
+.hint.warning {
+  color: #e67e22;
 }
 
 /* Game View */
