@@ -3,7 +3,12 @@
   "compilerOptions": {
     "composite": true,
     "outDir": "dist",
-    "rootDir": "src"
+    "paths": {
+      "@game-hub/contracts": ["../../packages/contracts/dist/index.d.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../../packages/contracts" }
+  ]
 }
