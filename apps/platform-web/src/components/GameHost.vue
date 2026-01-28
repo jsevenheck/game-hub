@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, type Component } from "vue";
+import { computed, type Component } from "vue";
 import type { GameSessionContext } from "../stores/party";
 import { getGameUI } from "../gameRegistry";
 

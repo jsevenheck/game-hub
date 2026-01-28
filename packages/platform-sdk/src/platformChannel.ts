@@ -53,8 +53,11 @@ export class PlatformChannel {
     });
 
     this.socket.on("party:joined", (payload) => {
-      // Store token for future reconnects
+      // Store token for future reconnects.
+      // IMPORTANT: socket.id changes after reconnect/refresh, so we must send
+      // the token in handshake auth to restore player identity on the server.
       this._token = payload.token;
+      this.setToken(payload.token);
       this.joinedListeners.forEach((cb) => cb(payload));
     });
 
@@ -75,12 +78,18 @@ export class PlatformChannel {
   }
 
   /**
-   * Update auth token and reconnect if needed
+   * Update auth token for future reconnects.
+   * Socket.IO socket.id changes after every reconnect/refresh, so we must
+   * send the platform token in handshake auth to restore player identity.
    */
   setToken(token: string): void {
     this._token = token;
-    // Update socket auth for next connection
-    (this.socket.auth as Record<string, string>)["token"] = token;
+    // Ensure socket.auth exists and set the token for next connection
+    if (!this.socket.auth || typeof this.socket.auth !== "object") {
+      this.socket.auth = { token };
+    } else {
+      (this.socket.auth as Record<string, string>)["token"] = token;
+    }
   }
 
   connect(): void {
