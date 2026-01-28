@@ -40,6 +40,9 @@ async function main() {
       credentials: true,
     },
     transports: ["websocket", "polling"],
+    // Heartbeat settings for faster dead connection detection
+    pingInterval: 10000, // Send ping every 10 seconds
+    pingTimeout: 5000,   // Wait 5 seconds for pong before considering connection dead
   });
 
   // Register platform handlers on /platform namespace

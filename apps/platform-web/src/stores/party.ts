@@ -40,6 +40,10 @@ export const usePartyStore = defineStore("party", () => {
     return party.value?.hostId === playerId.value;
   });
 
+  const isOwner = computed(() => {
+    return party.value?.ownerId === playerId.value;
+  });
+
   const currentPlayer = computed(() => {
     return party.value?.players.find((p) => p.id === playerId.value) ?? null;
   });
@@ -204,6 +208,7 @@ export const usePartyStore = defineStore("party", () => {
 
     // Computed
     isHost,
+    isOwner,
     currentPlayer,
     isInGame,
 

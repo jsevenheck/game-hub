@@ -45,7 +45,8 @@ export function createParty(hostName: string, gameId?: string): CreatePartyResul
   const party: Party = {
     id: partyId,
     status: "lobby",
-    hostId: playerId, // Use stable playerId, not socket.id
+    ownerId: playerId, // Original creator, permanent
+    hostId: playerId, // Current host, can transfer on disconnect
     gameId: gameId ?? null,
     players: [hostPlayer],
   };
@@ -89,6 +90,13 @@ export function reconnectPlayer(partyId: string, playerId: string): Party | null
   if (!player) return null;
 
   player.connected = true;
+
+  // If the reconnecting player is the owner, restore them as host
+  if (party.ownerId === playerId && party.hostId !== playerId) {
+    console.log(`[party] Owner ${playerId} (${player.name}) reconnected, restoring as host`);
+    party.hostId = playerId;
+  }
+
   return party;
 }
 
@@ -107,6 +115,15 @@ export function disconnectPlayer(partyId: string, playerId: string): Party | nul
     parties.delete(partyId);
     revokeAllPartyTokens(partyId);
     return null;
+  }
+
+  // If the disconnecting player was the host, transfer host to another connected player
+  if (party.hostId === playerId) {
+    const newHost = party.players.find((p) => p.connected && p.id !== playerId);
+    if (newHost) {
+      party.hostId = newHost.id;
+      console.log(`[party] Host transferred from ${playerId} to ${newHost.id} (${newHost.name})`);
+    }
   }
 
   return party;

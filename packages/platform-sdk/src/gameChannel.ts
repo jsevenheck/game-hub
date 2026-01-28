@@ -50,6 +50,12 @@ export class GameChannel {
       auth: {
         token: options.joinToken,
       },
+      // Reconnection with exponential backoff
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      randomizationFactor: 0.5,
     }) as GameSocket;
 
     this.setupListeners();

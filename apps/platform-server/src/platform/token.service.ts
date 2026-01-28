@@ -29,6 +29,33 @@ const tokens = new Map<string, TokenData>();
 const PLATFORM_TOKEN_TTL = 24 * 60 * 60 * 1000;
 const JOIN_TOKEN_TTL = 60 * 60 * 1000;
 
+// Periodic cleanup interval (every 5 minutes)
+const CLEANUP_INTERVAL = 5 * 60 * 1000;
+
+/**
+ * Cleanup expired tokens to prevent memory leaks.
+ * Runs periodically in the background.
+ */
+function cleanupExpiredTokens(): void {
+  const now = Date.now();
+  let cleaned = 0;
+  
+  for (const [token, data] of tokens.entries()) {
+    const ttl = data.type === "platform" ? PLATFORM_TOKEN_TTL : JOIN_TOKEN_TTL;
+    if (now - data.createdAt > ttl) {
+      tokens.delete(token);
+      cleaned++;
+    }
+  }
+  
+  if (cleaned > 0) {
+    console.log(`[tokens] Cleaned up ${cleaned} expired tokens. Active: ${tokens.size}`);
+  }
+}
+
+// Start periodic cleanup
+setInterval(cleanupExpiredTokens, CLEANUP_INTERVAL);
+
 export function generatePlayerId(): string {
   return crypto.randomUUID();
 }

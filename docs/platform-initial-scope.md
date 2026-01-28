@@ -37,11 +37,18 @@ server, SDK, and web.
 - Only the host can set roles.
 - Role assignment is part of the pre-game lobby state.
 
+## Owner vs Host
+- **Owner**: The original creator of the party. Permanent, never changes.
+- **Host**: The current active host who can manage the lobby and start games.
+- On disconnect: If the host disconnects, another connected player becomes host.
+- On reconnect: If the owner reconnects, they automatically become host again.
+
 ## State Shape (high level)
 - Party
   - `id`: string (UUID)
   - `status`: `lobby | in_game`
-  - `hostId`: string (playerId of host)
+  - `ownerId`: string (original creator, permanent)
+  - `hostId`: string (current host, can transfer on disconnect)
   - `players[]`: `id`, `name`, `role?`, `connected`
   - `gameId`: string | null (selected game, null until host picks one)
   - `sessionId`: string | null (set when game starts)
@@ -55,7 +62,7 @@ server, SDK, and web.
 ### Client → Server (on `/platform`)
 | Event | Payload | Description |
 |-------|---------|-------------|
-| `party:create` | `{ name }` | Create a new party; caller becomes host |
+| `party:create` | `{ name }` | Create a new party; caller becomes owner and host |
 | `party:join` | `{ partyId, name }` | Join an existing party |
 | `party:leave` | — | Leave the current party |
 | `party:setRole` | `{ playerId, role }` | Host assigns a role to a player |

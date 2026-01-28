@@ -31,6 +31,7 @@ export class PlatformChannel {
   private joinedListeners: Set<JoinedCallback> = new Set();
   private errorListeners: Set<ErrorCallback> = new Set();
   private gameStartedListeners: Set<GameStartedCallback> = new Set();
+  private reconnectListeners: Set<() => void> = new Set();
   private _token: string | undefined;
 
   constructor(options: PlatformChannelOptions) {
@@ -42,6 +43,12 @@ export class PlatformChannel {
       autoConnect: options.autoConnect ?? false,
       transports: ["websocket", "polling"],
       auth: this._token ? { token: this._token } : undefined,
+      // Reconnection with exponential backoff
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,      // Start with 1 second
+      reconnectionDelayMax: 10000,  // Max 10 seconds between attempts
+      randomizationFactor: 0.5,     // Add jitter to prevent thundering herd
     }) as PlatformSocket;
 
     this.setupListeners();
@@ -160,5 +167,31 @@ export class PlatformChannel {
   onDisconnect(callback: (reason: string) => void): () => void {
     this.socket.on("disconnect", callback);
     return () => this.socket.off("disconnect", callback);
+  }
+
+  onReconnect(callback: () => void): () => void {
+    this.reconnectListeners.add(callback);
+    // Socket.IO emits 'connect' on reconnect, so we track it separately
+    const handler = () => {
+      if (this._token) {
+        // Only fire reconnect if we had a token (meaning we were previously connected)
+        callback();
+      }
+    };
+    this.socket.io.on("reconnect", handler);
+    return () => {
+      this.reconnectListeners.delete(callback);
+      this.socket.io.off("reconnect", handler);
+    };
+  }
+
+  onReconnectAttempt(callback: (attempt: number) => void): () => void {
+    this.socket.io.on("reconnect_attempt", callback);
+    return () => this.socket.io.off("reconnect_attempt", callback);
+  }
+
+  onReconnectFailed(callback: () => void): () => void {
+    this.socket.io.on("reconnect_failed", callback);
+    return () => this.socket.io.off("reconnect_failed", callback);
   }
 }

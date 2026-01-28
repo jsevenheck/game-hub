@@ -20,7 +20,8 @@ export type Player = z.infer<typeof PlayerSchema>;
 export const PartySchema = z.object({
   id: z.string(),
   status: z.enum(["lobby", "in_game"]),
-  hostId: z.string(), // Stable playerId, NOT socket.id
+  ownerId: z.string(), // Original creator, permanent
+  hostId: z.string(), // Current host, can transfer on disconnect
   gameId: z.string().nullable(), // Optional in lobby, required to start
   players: z.array(PlayerSchema),
 });
