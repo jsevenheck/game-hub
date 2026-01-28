@@ -65,12 +65,19 @@ async function fetchAvailableGames() {
   }
 }
 
-// Initialize with route param
+// Initialize with route param and auto-restore session
 onMounted(() => {
   if (routePartyId.value) {
     partyIdInput.value = routePartyId.value;
   }
   fetchAvailableGames();
+
+  // Auto-restore: if we have a stored token, connect to restore session
+  // The server will handle reconnection via the auth middleware
+  const storedToken = localStorage.getItem("game-hub:platform-token");
+  if (storedToken && !partyStore.party) {
+    partyStore.connect();
+  }
 });
 
 // Update URL when party changes
@@ -258,8 +265,8 @@ function copyPartyLink() {
           </button>
         </div>
         <p v-if="!partyStore.party?.gameId" class="hint">Please select a game to start</p>
-        <p v-else-if="!availableGames.find(g => g.id === partyStore.party?.gameId)?.available" class="hint warning">
-          This game is not yet available. Please select a different game.
+        <p v-else-if="!availableGames.find(g => g.id === partyStore.party?.gameId)?.available" class="hint info">
+          This game will run in placeholder mode (not yet implemented).
         </p>
       </div>
 
@@ -273,7 +280,7 @@ function copyPartyLink() {
         <button
           v-if="partyStore.isHost"
           @click="handleStart"
-          :disabled="partyStore.loading || !partyStore.party?.gameId || !availableGames.find(g => g.id === partyStore.party?.gameId)?.available"
+          :disabled="partyStore.loading || !partyStore.party?.gameId"
           class="btn-primary"
         >
           {{ partyStore.loading ? "Starting..." : "Start Game" }}

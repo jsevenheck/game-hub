@@ -278,13 +278,11 @@ export function registerPartyHandlers(io: Server): PlatformNamespace {
         return;
       }
 
-      // Check if the game is actually implemented/registered
+      // Note: We allow starting even if game is not registered.
+      // This enables testing the "game started" flow with placeholder UI.
+      // The client will show a placeholder when no game UI is registered.
       if (!isGameRegistered(party.gameId)) {
-        socket.emit("party:error", {
-          code: "GAME_NOT_AVAILABLE",
-          message: `Game "${party.gameId}" is not yet available. Please select a different game.`,
-        });
-        return;
+        console.log(`[platform] Starting unregistered game "${party.gameId}" - placeholder mode`);
       }
 
       const result = partyService.startGame(partyId, playerId);

@@ -91,12 +91,11 @@ export class PlatformChannel {
    */
   setToken(token: string): void {
     this._token = token;
-    // Ensure socket.auth exists and set the token for next connection
-    if (!this.socket.auth || typeof this.socket.auth !== "object") {
-      this.socket.auth = { token };
-    } else {
-      (this.socket.auth as Record<string, string>)["token"] = token;
-    }
+    // Safely merge token into socket.auth for next connection/reconnect
+    const existingAuth = (typeof this.socket.auth === "object" && this.socket.auth !== null)
+      ? this.socket.auth
+      : {};
+    this.socket.auth = { ...existingAuth, token };
   }
 
   connect(): void {

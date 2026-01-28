@@ -98,27 +98,38 @@ localStorage.getItem('game-hub:platform-token')
 - ✅ Selected game is highlighted in Tab A
 - ✅ Tab B shows the selected game in "Selected Game" section
 - ✅ If game is not implemented, "Coming Soon" badge appears
-- ✅ Start button is disabled for unimplemented games
+- ✅ Start button is **enabled** even for unimplemented games (placeholder mode)
 
 ---
 
-## Test 5: party:gameStarted Payload
+## Test 5: Game Started Flow (Placeholder Mode)
 
-> **Note:** This test requires a registered game on the server. Currently no games are registered, so this tests the error flow.
+> **Note:** No games are registered on the server yet. This tests the placeholder flow.
 
-### Steps (Error Flow)
+### Steps
 
-1. Complete Test 1
-2. Select a game marked "Coming Soon"
-3. Attempt to start (button should be disabled)
-4. If somehow started, expect error: "Game not available"
+1. Complete Test 1 (two tabs in a party)
+2. As host (Tab A), select any game (e.g., "Werwolf")
+3. Note the info message: "This game will run in placeholder mode"
+4. Click **Start Game**
+5. Observe both tabs
 
-### Steps (Success Flow - when games are implemented)
+### Expected Results
 
-1. Register a game in `apps/platform-server/src/games/registry.ts`
-2. Complete party flow, select that game
-3. Click Start Game
-4. Observe browser console for `party:gameStarted` event
+- ✅ Both tabs transition to the Game View
+- ✅ GameHost shows placeholder UI with:
+  - Game ID (e.g., "werwolf")
+  - Session ID (UUID)
+  - WebSocket Namespace (e.g., `/g/werwolf`)
+- ✅ Party status changes to `in_game`
+- ✅ No error is shown
+
+### Verify in Console
+
+```js
+// Check the active game session
+console.log(JSON.stringify(partyStore.activeGameSession, null, 2))
+```
 
 ### Expected `party:gameStarted` Payload
 
@@ -134,7 +145,6 @@ localStorage.getItem('game-hub:platform-token')
 - ✅ `sessionId` is a valid UUID
 - ✅ `wsNamespace` follows `/g/<gameId>` format
 - ✅ `joinToken` is unique per player (check both tabs)
-- ✅ Party status changes to `in_game`
 - ✅ GameHost component renders with placeholder
 
 ---
@@ -193,4 +203,4 @@ Watch the terminal running `pnpm dev` for:
 | Duplicate players after refresh | Token not sent in handshake | Check `socket.auth` is set |
 | Host lost after refresh | `hostId` using `socket.id` | Verify `hostId` uses stable `playerId` |
 | Cannot rejoin party | Token expired or invalid | Clear localStorage and rejoin |
-| Game won't start | Game not registered | Check `isGameRegistered()` in registry |
+| Placeholder not showing | `activeGameSession` not set | Verify `party:gameStarted` was received |
