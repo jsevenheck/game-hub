@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from "vue";
+import { computed } from "vue";
 import type { Party } from "@game-hub/platform-sdk";
 import { getGameUI } from "../gameRegistry";
 
@@ -8,21 +8,6 @@ const props = defineProps<{
 }>();
 
 const gameRegistration = computed(() => getGameUI(props.party.gameId));
-
-// Placeholder component when no game is registered
-const PlaceholderGame = defineAsyncComponent(() =>
-  Promise.resolve({
-    template: `
-      <div class="placeholder-game">
-        <h3>🎮 Game Started!</h3>
-        <p>Game ID: <strong>{{ gameId }}</strong></p>
-        <p>No game UI registered for this game.</p>
-        <p class="hint">Games can be plugged in by registering their Vue component in the game registry.</p>
-      </div>
-    `,
-    props: ["gameId"],
-  })
-);
 </script>
 
 <template>
@@ -38,7 +23,13 @@ const PlaceholderGame = defineAsyncComponent(() =>
         :is="gameRegistration.component"
         :party="party"
       />
-      <PlaceholderGame v-else :gameId="party.gameId" />
+      <!-- Placeholder when no game is registered -->
+      <div v-else class="placeholder-game">
+        <h3>🎮 Game Started!</h3>
+        <p>Game ID: <strong>{{ party.gameId }}</strong></p>
+        <p>No game UI registered for this game.</p>
+        <p class="hint">Games can be plugged in by registering their Vue component in the game registry.</p>
+      </div>
     </div>
   </div>
 </template>

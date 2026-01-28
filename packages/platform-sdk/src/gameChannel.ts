@@ -22,7 +22,10 @@ export class GameChannel {
   private eventListeners: Set<GameEventCallback> = new Set();
 
   constructor(options: GameChannelOptions) {
-    const fullUrl = options.url.replace(/\/$/, "") + "/" + options.namespace;
+    // Normalize URL: remove trailing slash and ensure namespace doesn't start with slash
+    const baseUrl = options.url.replace(/\/$/, "");
+    const namespace = options.namespace.replace(/^\//, "");
+    const fullUrl = `${baseUrl}/${namespace}`;
     this.socket = io(fullUrl, {
       autoConnect: options.autoConnect ?? false,
       transports: ["websocket", "polling"],

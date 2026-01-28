@@ -1,12 +1,26 @@
 import crypto from "node:crypto";
-import type { Party, Player, PartyStatus } from "@game-hub/contracts";
+import type { Party, Player } from "@game-hub/contracts";
 import { revokeAllPartyTokens } from "./token.service.js";
 
 const parties = new Map<string, Party>();
 
 function generateId(): string {
-  // Generate a short, user-friendly party code
-  return crypto.randomBytes(3).toString("hex").toUpperCase();
+  // Generate a short, user-friendly party code with collision detection
+  let id: string;
+  let attempts = 0;
+  const maxAttempts = 10;
+
+  do {
+    id = crypto.randomBytes(3).toString("hex").toUpperCase();
+    attempts++;
+  } while (parties.has(id) && attempts < maxAttempts);
+
+  if (parties.has(id)) {
+    // Extremely unlikely, but use a longer ID as fallback
+    id = crypto.randomBytes(6).toString("hex").toUpperCase();
+  }
+
+  return id;
 }
 
 export function createParty(hostId: string, hostName: string, gameId: string): Party {
