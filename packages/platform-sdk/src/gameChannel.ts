@@ -10,11 +10,28 @@ export type GameSocket = Socket<GameServerToClientEvents, GameClientToServerEven
 export interface GameChannelOptions {
   url: string;
   namespace: string;
+  joinToken: string; // Required for authentication
   autoConnect?: boolean;
 }
 
 export type GameStateCallback = (state: unknown) => void;
 export type GameEventCallback = (event: GameEvent) => void;
+
+/**
+ * Helper to create a game channel connection
+ */
+export function connectGame(options: {
+  baseUrl: string;
+  wsNamespace: string;
+  joinToken: string;
+}): GameChannel {
+  return new GameChannel({
+    url: options.baseUrl,
+    namespace: options.wsNamespace,
+    joinToken: options.joinToken,
+    autoConnect: true,
+  });
+}
 
 export class GameChannel {
   private socket: GameSocket;
@@ -26,9 +43,13 @@ export class GameChannel {
     const baseUrl = options.url.replace(/\/$/, "");
     const namespace = options.namespace.replace(/^\//, "");
     const fullUrl = `${baseUrl}/${namespace}`;
+    
     this.socket = io(fullUrl, {
       autoConnect: options.autoConnect ?? false,
       transports: ["websocket", "polling"],
+      auth: {
+        token: options.joinToken,
+      },
     }) as GameSocket;
 
     this.setupListeners();

@@ -1,10 +1,13 @@
 import crypto from "node:crypto";
 import type { Party, Player } from "@game-hub/contracts";
-import { revokeAllPartyTokens } from "./token.service.js";
+import { revokeAllPartyTokens, generatePlayerId, generateSessionId } from "./token.service.js";
 
 const parties = new Map<string, Party>();
 
-function generateId(): string {
+// Track socket to player mapping for reconnection
+const socketToPlayer = new Map<string, { partyId: string; playerId: string }>();
+
+function generatePartyId(): string {
   // Generate a short, user-friendly party code with collision detection
   let id: string;
   let attempts = 0;
@@ -23,66 +26,82 @@ function generateId(): string {
   return id;
 }
 
-export function createParty(hostId: string, hostName: string, gameId: string): Party {
-  const partyId = generateId();
+export interface CreatePartyResult {
+  party: Party;
+  playerId: string;
+}
+
+export function createParty(hostName: string, gameId?: string): CreatePartyResult {
+  const partyId = generatePartyId();
+  const playerId = generatePlayerId();
+  
   const hostPlayer: Player = {
-    id: hostId,
+    id: playerId,
     name: hostName,
+    role: null,
     connected: true,
   };
 
   const party: Party = {
     id: partyId,
     status: "lobby",
-    hostId,
-    gameId,
+    hostId: playerId, // Use stable playerId, not socket.id
+    gameId: gameId ?? null,
     players: [hostPlayer],
   };
 
   parties.set(partyId, party);
-  return party;
+  return { party, playerId };
 }
 
 export function getParty(partyId: string): Party | undefined {
   return parties.get(partyId);
 }
 
-export function joinParty(partyId: string, playerId: string, playerName: string): Party | null {
+export interface JoinPartyResult {
+  party: Party;
+  playerId: string;
+}
+
+export function joinParty(partyId: string, playerName: string): JoinPartyResult | null {
   const party = parties.get(partyId);
   if (!party) return null;
   if (party.status !== "lobby") return null;
 
-  // Check if player already exists (reconnection)
-  const existingPlayer = party.players.find((p) => p.id === playerId);
-  if (existingPlayer) {
-    existingPlayer.connected = true;
-    return party;
-  }
-
+  const playerId = generatePlayerId();
+  
   const player: Player = {
     id: playerId,
     name: playerName,
+    role: null,
     connected: true,
   };
 
   party.players.push(player);
-  return party;
+  return { party, playerId };
 }
 
-export function leaveParty(partyId: string, playerId: string): Party | null {
+export function reconnectPlayer(partyId: string, playerId: string): Party | null {
   const party = parties.get(partyId);
   if (!party) return null;
 
-  const playerIndex = party.players.findIndex((p) => p.id === playerId);
-  if (playerIndex === -1) return null;
+  const player = party.players.find((p) => p.id === playerId);
+  if (!player) return null;
 
-  // Mark as disconnected instead of removing
-  const player = party.players[playerIndex];
-  if (player) {
-    player.connected = false;
-  }
+  player.connected = true;
+  return party;
+}
 
-  // If host disconnected and all players are disconnected, clean up the party
+export function disconnectPlayer(partyId: string, playerId: string): Party | null {
+  const party = parties.get(partyId);
+  if (!party) return null;
+
+  const player = party.players.find((p) => p.id === playerId);
+  if (!player) return null;
+
+  player.connected = false;
+
+  // If all players are disconnected, clean up the party
   const allDisconnected = party.players.every((p) => !p.connected);
   if (allDisconnected) {
     parties.delete(partyId);
@@ -96,7 +115,7 @@ export function leaveParty(partyId: string, playerId: string): Party | null {
 export function setPlayerRole(
   partyId: string,
   playerId: string,
-  role: string,
+  role: string | null,
   requesterId: string
 ): Party | null {
   const party = parties.get(partyId);
@@ -110,17 +129,48 @@ export function setPlayerRole(
   return party;
 }
 
-export function startGame(partyId: string, requesterId: string): Party | null {
+export function selectGame(partyId: string, gameId: string, requesterId: string): Party | null {
+  const party = parties.get(partyId);
+  if (!party) return null;
+  if (party.hostId !== requesterId) return null; // Only host can select game
+  if (party.status !== "lobby") return null;
+
+  party.gameId = gameId;
+  return party;
+}
+
+export interface StartGameResult {
+  party: Party;
+  sessionId: string;
+}
+
+export function startGame(partyId: string, requesterId: string): StartGameResult | null {
   const party = parties.get(partyId);
   if (!party) return null;
   if (party.hostId !== requesterId) return null; // Only host can start
   if (party.status !== "lobby") return null;
+  if (!party.gameId) return null; // Game must be selected
 
+  const sessionId = generateSessionId();
   party.status = "in_game";
-  return party;
+  
+  return { party, sessionId };
 }
 
 export function deleteParty(partyId: string): boolean {
   revokeAllPartyTokens(partyId);
   return parties.delete(partyId);
+}
+
+// Socket mapping helpers
+export function setSocketMapping(socketId: string, partyId: string, playerId: string): void {
+  socketToPlayer.set(socketId, { partyId, playerId });
+}
+
+export function getSocketMapping(socketId: string): { partyId: string; playerId: string } | undefined {
+  return socketToPlayer.get(socketId);
+}
+
+export function removeSocketMapping(socketId: string): void {
+  socketToPlayer.delete(socketId);
 }

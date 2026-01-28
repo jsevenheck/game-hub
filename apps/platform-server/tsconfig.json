@@ -6,10 +6,7 @@
     "types": ["node"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "outDir": "dist",
-    "paths": {
-      "@game-hub/contracts": ["../../packages/contracts/dist/index.d.ts"]
-    }
+    "outDir": "dist"
   },
   "include": ["src/**/*.ts"],
   "references": [

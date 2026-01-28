@@ -4,6 +4,8 @@ import type { GameDefinition } from "@game-hub/contracts";
 /**
  * Game registry for server-side game handlers.
  * Games register themselves here to enable their Socket.IO namespaces.
+ * 
+ * Convention: Game namespaces use /g/<gameId> format.
  */
 
 export interface GameServerHandler {
@@ -26,15 +28,19 @@ export function getAllGames(): GameDefinition[] {
   return Array.from(gameHandlers.values()).map((h) => h.definition);
 }
 
+export function getGameNamespace(gameId: string): string {
+  return `/g/${gameId}`;
+}
+
 export function initializeGameNamespaces(io: Server): void {
+  if (gameHandlers.size === 0) {
+    console.log("[games] No games registered. Server will run without game namespaces.");
+    return;
+  }
+
   for (const [gameId, handler] of gameHandlers.entries()) {
-    const namespace = `/game/${gameId}`;
+    const namespace = getGameNamespace(gameId);
     handler.register(io, namespace);
     console.log(`[games] Initialized namespace: ${namespace}`);
   }
 }
-
-// Games can be registered here:
-// Example:
-// import { werwolfHandler } from "@game-hub/werwolf-server";
-// registerGame(werwolfHandler);

@@ -5,9 +5,10 @@ export type {
   StateCallback,
   JoinedCallback,
   ErrorCallback,
+  GameStartedCallback,
 } from "./platformChannel.js";
 
-export { GameChannel } from "./gameChannel.js";
+export { GameChannel, connectGame } from "./gameChannel.js";
 export type {
   GameChannelOptions,
   GameSocket,

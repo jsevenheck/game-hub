@@ -42,13 +42,15 @@ async function main() {
     transports: ["websocket", "polling"],
   });
 
-  // Register platform handlers (party management)
+  // Register platform handlers on /platform namespace
   registerPartyHandlers(io);
 
-  // Initialize game-specific namespaces
+  // Initialize game-specific namespaces (uses /g/<gameId> convention)
   initializeGameNamespaces(io);
 
   console.log(`[server] Platform server running on http://${HOST}:${PORT}`);
+  console.log(`[server] Platform namespace: /platform`);
+  console.log(`[server] Game namespaces: /g/<gameId>`);
 }
 
 main().catch((err) => {

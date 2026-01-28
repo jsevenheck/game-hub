@@ -5,32 +5,43 @@ import type {
   CreatePartyPayload,
   JoinPartyPayload,
   SetRolePayload,
+  SelectGamePayload,
   PartyStatePayload,
   PartyJoinedPayload,
   PartyErrorPayload,
+  GameStartedPayload,
 } from "@game-hub/contracts";
 
 export type PlatformSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export interface PlatformChannelOptions {
   url: string;
+  token?: string; // Auth token for reconnection
   autoConnect?: boolean;
 }
 
 export type StateCallback = (state: PartyStatePayload) => void;
 export type JoinedCallback = (payload: PartyJoinedPayload) => void;
 export type ErrorCallback = (error: PartyErrorPayload) => void;
+export type GameStartedCallback = (payload: GameStartedPayload) => void;
 
 export class PlatformChannel {
   private socket: PlatformSocket;
   private stateListeners: Set<StateCallback> = new Set();
   private joinedListeners: Set<JoinedCallback> = new Set();
   private errorListeners: Set<ErrorCallback> = new Set();
+  private gameStartedListeners: Set<GameStartedCallback> = new Set();
+  private _token: string | undefined;
 
   constructor(options: PlatformChannelOptions) {
-    this.socket = io(options.url, {
+    this._token = options.token;
+    
+    // Connect to /platform namespace with auth token if available
+    const baseUrl = options.url.replace(/\/$/, "");
+    this.socket = io(`${baseUrl}/platform`, {
       autoConnect: options.autoConnect ?? false,
       transports: ["websocket", "polling"],
+      auth: this._token ? { token: this._token } : undefined,
     }) as PlatformSocket;
 
     this.setupListeners();
@@ -42,12 +53,34 @@ export class PlatformChannel {
     });
 
     this.socket.on("party:joined", (payload) => {
+      // Store token for future reconnects
+      this._token = payload.token;
       this.joinedListeners.forEach((cb) => cb(payload));
     });
 
     this.socket.on("party:error", (error) => {
       this.errorListeners.forEach((cb) => cb(error));
     });
+
+    this.socket.on("party:gameStarted", (payload) => {
+      this.gameStartedListeners.forEach((cb) => cb(payload));
+    });
+  }
+
+  /**
+   * Get the current auth token
+   */
+  get token(): string | undefined {
+    return this._token;
+  }
+
+  /**
+   * Update auth token and reconnect if needed
+   */
+  setToken(token: string): void {
+    this._token = token;
+    // Update socket auth for next connection
+    (this.socket.auth as Record<string, string>)["token"] = token;
   }
 
   connect(): void {
@@ -82,6 +115,10 @@ export class PlatformChannel {
     this.socket.emit("party:setRole", payload);
   }
 
+  selectGame(payload: SelectGamePayload): void {
+    this.socket.emit("party:selectGame", payload);
+  }
+
   startGame(): void {
     this.socket.emit("party:start");
   }
@@ -99,6 +136,11 @@ export class PlatformChannel {
   onError(callback: ErrorCallback): () => void {
     this.errorListeners.add(callback);
     return () => this.errorListeners.delete(callback);
+  }
+
+  onGameStarted(callback: GameStartedCallback): () => void {
+    this.gameStartedListeners.add(callback);
+    return () => this.gameStartedListeners.delete(callback);
   }
 
   onConnect(callback: () => void): () => void {

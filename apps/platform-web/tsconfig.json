@@ -6,11 +6,7 @@
     "types": ["vite/client"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "noEmit": true,
-    "paths": {
-      "@game-hub/contracts": ["../../packages/contracts/dist/index.d.ts"],
-      "@game-hub/platform-sdk": ["../../packages/platform-sdk/dist/index.d.ts"]
-    }
+    "noEmit": true
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"],
   "references": [

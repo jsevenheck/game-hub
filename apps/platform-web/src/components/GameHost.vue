@@ -1,34 +1,62 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import type { Party } from "@game-hub/platform-sdk";
+import { computed, defineAsyncComponent, type Component } from "vue";
+import type { GameSessionContext } from "../stores/party";
 import { getGameUI } from "../gameRegistry";
 
 const props = defineProps<{
-  party: Party;
+  ctx: GameSessionContext;
 }>();
 
-const gameRegistration = computed(() => getGameUI(props.party.gameId));
+// Get registered game UI if available
+const gameRegistration = computed(() => getGameUI(props.ctx.gameId));
+
+// Dynamic game component - tries to load from registry first, then falls back to async import
+const GameComponent = computed<Component | null>(() => {
+  if (gameRegistration.value) {
+    return gameRegistration.value.component;
+  }
+  
+  // Try to dynamically import the game module (future extensibility)
+  // This allows games to be lazy-loaded without pre-registration
+  // For now, return null to show placeholder
+  return null;
+});
+
+const gameName = computed(() => {
+  return gameRegistration.value?.definition.name ?? props.ctx.gameId;
+});
 </script>
 
 <template>
   <div class="game-host">
     <div class="game-header">
-      <h2>{{ gameRegistration?.definition.name ?? "Game" }}</h2>
+      <h2>{{ gameName }}</h2>
       <span class="game-status">In Progress</span>
     </div>
 
     <div class="game-container">
+      <!-- Render the game component with ctx props -->
       <component
-        v-if="gameRegistration"
-        :is="gameRegistration.component"
-        :party="party"
+        v-if="GameComponent"
+        :is="GameComponent"
+        :gameId="ctx.gameId"
+        :sessionId="ctx.sessionId"
+        :joinToken="ctx.joinToken"
+        :wsNamespace="ctx.wsNamespace"
+        :apiBaseUrl="ctx.apiBaseUrl"
       />
-      <!-- Placeholder when no game is registered -->
+      
+      <!-- Placeholder when no game UI is registered -->
       <div v-else class="placeholder-game">
         <h3>🎮 Game Started!</h3>
-        <p>Game ID: <strong>{{ party.gameId }}</strong></p>
-        <p>No game UI registered for this game.</p>
-        <p class="hint">Games can be plugged in by registering their Vue component in the game registry.</p>
+        <p>Game ID: <strong>{{ ctx.gameId }}</strong></p>
+        <p>Session ID: <strong>{{ ctx.sessionId }}</strong></p>
+        <p class="namespace">WebSocket Namespace: <code>{{ ctx.wsNamespace }}</code></p>
+        <p class="hint">
+          No game UI registered for "{{ ctx.gameId }}".
+          <br />
+          Games can be plugged in by registering their Vue component in the game registry.
+        </p>
       </div>
     </div>
   </div>
@@ -87,10 +115,23 @@ const gameRegistration = computed(() => getGameUI(props.party.gameId));
   color: #eee;
 }
 
-.placeholder-game .hint {
+.placeholder-game code {
+  background-color: #2d3a5c;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: monospace;
+  color: #4fc3f7;
+}
+
+.placeholder-game .namespace {
   margin-top: 16px;
+}
+
+.placeholder-game .hint {
+  margin-top: 24px;
   font-size: 0.9rem;
   font-style: italic;
   color: #666;
+  line-height: 1.6;
 }
 </style>

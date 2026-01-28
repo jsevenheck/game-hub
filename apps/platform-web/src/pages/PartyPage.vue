@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { usePartyStore } from "../stores/party";
 import GameHost from "../components/GameHost.vue";
@@ -11,7 +11,7 @@ const partyStore = usePartyStore();
 // Form state
 const playerName = ref("");
 const partyIdInput = ref("");
-const gameId = ref("demo"); // Default game for now
+const selectedGameId = ref(""); // Game selection for host
 
 // Get party ID from route if present
 const routePartyId = computed(() => route.params.id as string | undefined);
@@ -19,7 +19,14 @@ const routePartyId = computed(() => route.params.id as string | undefined);
 // View state
 const showJoinForm = computed(() => !partyStore.party);
 const showLobby = computed(() => partyStore.party?.status === "lobby");
-const showGame = computed(() => partyStore.party?.status === "in_game");
+const showGame = computed(() => partyStore.party?.status === "in_game" && partyStore.activeGameSession);
+
+// Available games (stub - in future this could be fetched from server)
+const availableGames = [
+  { id: "werwolf", name: "Werwolf" },
+  { id: "codenames", name: "Codenames" },
+  { id: "demo", name: "Demo Game" },
+];
 
 // Initialize with route param
 onMounted(() => {
@@ -38,14 +45,20 @@ watch(
   }
 );
 
-// Cleanup on unmount
-onUnmounted(() => {
-  // Don't disconnect here - let the user stay connected
-});
+// Sync selected game with party state
+watch(
+  () => partyStore.party?.gameId,
+  (newGameId) => {
+    if (newGameId) {
+      selectedGameId.value = newGameId;
+    }
+  },
+  { immediate: true }
+);
 
 function handleCreate() {
   if (!playerName.value.trim()) return;
-  partyStore.createParty(gameId.value, playerName.value.trim());
+  partyStore.createParty(playerName.value.trim());
 }
 
 function handleJoin() {
@@ -59,11 +72,21 @@ function handleLeave() {
 }
 
 function handleStart() {
+  if (!partyStore.party?.gameId) {
+    partyStore.clearError();
+    // Show error if no game selected
+    return;
+  }
   partyStore.startGame();
 }
 
+function handleGameSelect(gameId: string) {
+  selectedGameId.value = gameId;
+  partyStore.selectGame(gameId);
+}
+
 function handleSetRole(playerId: string, role: string) {
-  partyStore.setRole(playerId, role);
+  partyStore.setRole(playerId, role || null);
 }
 
 function copyPartyLink() {
@@ -178,11 +201,34 @@ function copyPartyLink() {
         </ul>
       </div>
 
+      <!-- Game Selection (host only) -->
+      <div v-if="partyStore.isHost" class="game-selection">
+        <h3>Select Game</h3>
+        <div class="game-options">
+          <button
+            v-for="game in availableGames"
+            :key="game.id"
+            @click="handleGameSelect(game.id)"
+            :class="{ 'selected': partyStore.party?.gameId === game.id }"
+            class="game-option"
+          >
+            {{ game.name }}
+          </button>
+        </div>
+        <p v-if="!partyStore.party?.gameId" class="hint">Please select a game to start</p>
+      </div>
+
+      <!-- Game Info (for non-hosts) -->
+      <div v-else-if="partyStore.party?.gameId" class="game-info">
+        <h3>Selected Game</h3>
+        <p>{{ availableGames.find(g => g.id === partyStore.party?.gameId)?.name ?? partyStore.party?.gameId }}</p>
+      </div>
+
       <div class="lobby-actions">
         <button
           v-if="partyStore.isHost"
           @click="handleStart"
-          :disabled="partyStore.loading"
+          :disabled="partyStore.loading || !partyStore.party?.gameId"
           class="btn-primary"
         >
           {{ partyStore.loading ? "Starting..." : "Start Game" }}
@@ -194,8 +240,8 @@ function copyPartyLink() {
     </div>
 
     <!-- Game View -->
-    <div v-if="showGame && partyStore.party" class="game-view">
-      <GameHost :party="partyStore.party" />
+    <div v-if="showGame && partyStore.activeGameSession" class="game-view">
+      <GameHost :ctx="partyStore.activeGameSession" />
       <div class="game-actions">
         <button @click="handleLeave" class="btn-danger">Leave Game</button>
       </div>
@@ -453,6 +499,60 @@ button:disabled {
 
 .waiting-text {
   color: #aaa;
+  font-style: italic;
+}
+
+/* Game Selection */
+.game-selection,
+.game-info {
+  background-color: #0f1426;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.game-selection h3,
+.game-info h3 {
+  margin-bottom: 12px;
+  color: #aaa;
+}
+
+.game-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.game-option {
+  padding: 12px 20px;
+  border: 2px solid #2d3a5c;
+  border-radius: 8px;
+  background-color: transparent;
+  color: #eee;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.game-option:hover {
+  border-color: #4fc3f7;
+}
+
+.game-option.selected {
+  border-color: #4fc3f7;
+  background-color: #1a2744;
+  color: #4fc3f7;
+}
+
+.game-info p {
+  color: #4fc3f7;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.hint {
+  margin-top: 12px;
+  color: #666;
+  font-size: 0.9rem;
   font-style: italic;
 }
 
