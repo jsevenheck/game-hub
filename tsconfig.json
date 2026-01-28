@@ -3,7 +3,6 @@
   "references": [
     { "path": "./packages/contracts" },
     { "path": "./packages/platform-sdk" },
-    { "path": "./apps/platform-server" },
-    { "path": "./apps/platform-web" }
+    { "path": "./apps/platform-server" }
   ]
 }

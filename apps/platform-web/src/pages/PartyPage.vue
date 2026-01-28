@@ -1,0 +1,655 @@
+<script setup lang="ts">
+import { ref, computed, onMounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { usePartyStore } from "../stores/party";
+import GameHost from "../components/GameHost.vue";
+
+const route = useRoute();
+const router = useRouter();
+const partyStore = usePartyStore();
+
+// Form state
+const playerName = ref("");
+const partyIdInput = ref("");
+const selectedGameId = ref(""); // Game selection for host
+
+// Get party ID from route if present
+const routePartyId = computed(() => route.params.id as string | undefined);
+
+// View state
+const showJoinForm = computed(() => !partyStore.party);
+const showLobby = computed(() => partyStore.party?.status === "lobby");
+const showGame = computed(() => partyStore.party?.status === "in_game" && partyStore.activeGameSession);
+
+// Available games - loaded from server
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? "http://localhost:3000";
+
+interface GameInfo {
+  id: string;
+  name: string;
+  available: boolean; // true if implemented on server
+}
+
+const availableGames = ref<GameInfo[]>([
+  // Default list shown before server responds
+  { id: "werwolf", name: "Werwolf", available: false },
+  { id: "codenames", name: "Codenames", available: false },
+  { id: "demo", name: "Demo Game", available: false },
+]);
+
+// Fetch registered games from server
+async function fetchAvailableGames() {
+  try {
+    const response = await fetch(`${SOCKET_URL}/games`);
+    const data = await response.json();
+    const registeredIds = new Set((data.games as { id: string }[]).map(g => g.id));
+    
+    // Update availability status
+    availableGames.value = availableGames.value.map(game => ({
+      ...game,
+      available: registeredIds.has(game.id),
+    }));
+    
+    // Add any server-registered games not in our list
+    for (const serverGame of data.games as { id: string; name: string }[]) {
+      if (!availableGames.value.find(g => g.id === serverGame.id)) {
+        availableGames.value.push({
+          id: serverGame.id,
+          name: serverGame.name,
+          available: true,
+        });
+      }
+    }
+  } catch (error) {
+    console.warn("Could not fetch available games from server:", error);
+  }
+}
+
+// Initialize with route param and auto-restore session
+onMounted(() => {
+  if (routePartyId.value) {
+    partyIdInput.value = routePartyId.value;
+  }
+  fetchAvailableGames();
+
+  // Auto-restore: if we have a stored token, connect to restore session
+  // The server will handle reconnection via the auth middleware
+  const storedToken = localStorage.getItem("game-hub:platform-token");
+  if (storedToken && !partyStore.party) {
+    partyStore.connect();
+  }
+});
+
+// Update URL when party changes
+watch(
+  () => partyStore.party?.id,
+  (newId) => {
+    if (newId && route.params.id !== newId) {
+      router.replace(`/party/${newId}`);
+    }
+  }
+);
+
+// Sync selected game with party state
+watch(
+  () => partyStore.party?.gameId,
+  (newGameId) => {
+    if (newGameId) {
+      selectedGameId.value = newGameId;
+    }
+  },
+  { immediate: true }
+);
+
+function handleCreate() {
+  if (!playerName.value.trim()) return;
+  partyStore.createParty(playerName.value.trim());
+}
+
+function handleJoin() {
+  if (!playerName.value.trim() || !partyIdInput.value.trim()) return;
+  partyStore.joinParty(partyIdInput.value.trim().toUpperCase(), playerName.value.trim());
+}
+
+function handleLeave() {
+  partyStore.leaveParty();
+  router.replace("/");
+}
+
+function handleStart() {
+  if (!partyStore.party?.gameId) {
+    partyStore.clearError();
+    // Show error if no game selected
+    return;
+  }
+  partyStore.startGame();
+}
+
+function handleGameSelect(gameId: string) {
+  selectedGameId.value = gameId;
+  partyStore.selectGame(gameId);
+}
+
+function handleSetRole(playerId: string, role: string) {
+  partyStore.setRole(playerId, role || null);
+}
+
+function copyPartyLink() {
+  if (partyStore.party) {
+    const url = `${window.location.origin}/party/${partyStore.party.id}`;
+    navigator.clipboard.writeText(url);
+  }
+}
+</script>
+
+<template>
+  <div class="party-page">
+    <!-- Error Display -->
+    <div v-if="partyStore.error" class="error-banner">
+      <span>{{ partyStore.error.message }}</span>
+      <button @click="partyStore.clearError">✕</button>
+    </div>
+
+    <!-- Join/Create Form -->
+    <div v-if="showJoinForm" class="join-form">
+      <h2>Welcome to Game Hub</h2>
+
+      <div class="form-group">
+        <label for="playerName">Your Name</label>
+        <input
+          id="playerName"
+          v-model="playerName"
+          type="text"
+          placeholder="Enter your display name"
+          maxlength="50"
+        />
+      </div>
+
+      <div class="form-actions">
+        <div class="action-group">
+          <h3>Create a New Party</h3>
+          <button
+            @click="handleCreate"
+            :disabled="!playerName.trim() || partyStore.loading"
+            class="btn-primary"
+          >
+            {{ partyStore.loading ? "Creating..." : "Create Party" }}
+          </button>
+        </div>
+
+        <div class="divider">or</div>
+
+        <div class="action-group">
+          <h3>Join Existing Party</h3>
+          <div class="inline-form">
+            <input
+              v-model="partyIdInput"
+              type="text"
+              placeholder="Party Code"
+              maxlength="10"
+              class="party-code-input"
+            />
+            <button
+              @click="handleJoin"
+              :disabled="!playerName.trim() || !partyIdInput.trim() || partyStore.loading"
+              class="btn-secondary"
+            >
+              {{ partyStore.loading ? "Joining..." : "Join" }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lobby View -->
+    <div v-if="showLobby && partyStore.party" class="lobby">
+      <div class="lobby-header">
+        <h2>Party Lobby</h2>
+        <div class="party-code">
+          <span>Code: <strong>{{ partyStore.party.id }}</strong></span>
+          <button @click="copyPartyLink" class="btn-small">Copy Link</button>
+        </div>
+      </div>
+
+      <div class="players-list">
+        <h3>Players ({{ partyStore.party.players.length }})</h3>
+        <ul>
+          <li
+            v-for="player in partyStore.party.players"
+            :key="player.id"
+            :class="{
+              'is-host': player.id === partyStore.party?.hostId,
+              'is-disconnected': !player.connected,
+              'is-you': player.id === partyStore.playerId
+            }"
+          >
+            <span class="player-name">
+              {{ player.name }}
+              <span v-if="player.id === partyStore.party?.hostId" class="badge">Host</span>
+              <span v-if="player.id === partyStore.playerId" class="badge you">You</span>
+              <span v-if="!player.connected" class="badge offline">Offline</span>
+            </span>
+            <span v-if="player.role" class="player-role">{{ player.role }}</span>
+
+            <!-- Role assignment (host only) -->
+            <select
+              v-if="partyStore.isHost && player.id !== partyStore.playerId"
+              @change="(e: Event) => handleSetRole(player.id, (e.target as HTMLSelectElement).value)"
+              :value="player.role ?? ''"
+              class="role-select"
+            >
+              <option value="">No Role</option>
+              <option value="player">Player</option>
+              <option value="spectator">Spectator</option>
+            </select>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Game Selection (host only) -->
+      <div v-if="partyStore.isHost" class="game-selection">
+        <h3>Select Game</h3>
+        <div class="game-options">
+          <button
+            v-for="game in availableGames"
+            :key="game.id"
+            @click="handleGameSelect(game.id)"
+            :class="{ 
+              'selected': partyStore.party?.gameId === game.id,
+              'unavailable': !game.available
+            }"
+            class="game-option"
+          >
+            {{ game.name }}
+            <span v-if="!game.available" class="coming-soon">Coming Soon</span>
+          </button>
+        </div>
+        <p v-if="!partyStore.party?.gameId" class="hint">Please select a game to start</p>
+        <p v-else-if="!availableGames.find(g => g.id === partyStore.party?.gameId)?.available" class="hint info">
+          This game will run in placeholder mode (not yet implemented).
+        </p>
+      </div>
+
+      <!-- Game Info (for non-hosts) -->
+      <div v-else-if="partyStore.party?.gameId" class="game-info">
+        <h3>Selected Game</h3>
+        <p>{{ availableGames.find(g => g.id === partyStore.party?.gameId)?.name ?? partyStore.party?.gameId }}</p>
+      </div>
+
+      <div class="lobby-actions">
+        <button
+          v-if="partyStore.isHost"
+          @click="handleStart"
+          :disabled="partyStore.loading || !partyStore.party?.gameId"
+          class="btn-primary"
+        >
+          {{ partyStore.loading ? "Starting..." : "Start Game" }}
+        </button>
+        <span v-else class="waiting-text">Waiting for host to start...</span>
+
+        <button @click="handleLeave" class="btn-danger">Leave Party</button>
+      </div>
+    </div>
+
+    <!-- Game View -->
+    <div v-if="showGame && partyStore.activeGameSession" class="game-view">
+      <GameHost :ctx="partyStore.activeGameSession" />
+      <div class="game-actions">
+        <button @click="handleLeave" class="btn-danger">Leave Game</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.party-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.error-banner {
+  background-color: #e74c3c;
+  color: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-banner button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.join-form h2 {
+  text-align: center;
+  margin-bottom: 24px;
+  color: #4fc3f7;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #2d3a5c;
+  border-radius: 8px;
+  background-color: #0f1426;
+  color: #eee;
+  font-size: 1rem;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #4fc3f7;
+}
+
+.form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.action-group {
+  text-align: center;
+}
+
+.action-group h3 {
+  margin-bottom: 12px;
+  font-size: 1rem;
+  color: #aaa;
+}
+
+.divider {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+.inline-form {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.party-code-input {
+  width: 120px;
+  padding: 10px;
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: bold;
+  letter-spacing: 2px;
+  border: 2px solid #2d3a5c;
+  border-radius: 8px;
+  background-color: #0f1426;
+  color: #eee;
+}
+
+button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: #4fc3f7;
+  color: #0f1426;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #29b6f6;
+}
+
+.btn-secondary {
+  background-color: #2d3a5c;
+  color: #eee;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #3d4a6c;
+}
+
+.btn-danger {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #c0392b;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+/* Lobby Styles */
+.lobby-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.lobby-header h2 {
+  color: #4fc3f7;
+}
+
+.party-code {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #0f1426;
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+
+.party-code strong {
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  color: #4fc3f7;
+}
+
+.players-list {
+  background-color: #0f1426;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.players-list h3 {
+  margin-bottom: 12px;
+  color: #aaa;
+}
+
+.players-list ul {
+  list-style: none;
+}
+
+.players-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #2d3a5c;
+}
+
+.players-list li:last-child {
+  border-bottom: none;
+}
+
+.players-list li.is-disconnected {
+  opacity: 0.5;
+}
+
+.player-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: #4fc3f7;
+  color: #0f1426;
+}
+
+.badge.you {
+  background-color: #2ecc71;
+}
+
+.badge.offline {
+  background-color: #95a5a6;
+}
+
+.player-role {
+  color: #aaa;
+  font-style: italic;
+}
+
+.role-select {
+  padding: 6px;
+  border-radius: 4px;
+  background-color: #2d3a5c;
+  color: #eee;
+  border: none;
+}
+
+.lobby-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.waiting-text {
+  color: #aaa;
+  font-style: italic;
+}
+
+/* Game Selection */
+.game-selection,
+.game-info {
+  background-color: #0f1426;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.game-selection h3,
+.game-info h3 {
+  margin-bottom: 12px;
+  color: #aaa;
+}
+
+.game-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.game-option {
+  padding: 12px 20px;
+  border: 2px solid #2d3a5c;
+  border-radius: 8px;
+  background-color: transparent;
+  color: #eee;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.game-option:hover {
+  border-color: #4fc3f7;
+}
+
+.game-option.selected {
+  border-color: #4fc3f7;
+  background-color: #1a2744;
+  color: #4fc3f7;
+}
+
+.game-option.unavailable {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.game-option.unavailable:hover {
+  border-color: #666;
+}
+
+.game-option.unavailable.selected {
+  border-color: #e67e22;
+  background-color: #2a2010;
+  color: #e67e22;
+}
+
+.coming-soon {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  background-color: #e67e22;
+  color: #fff;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.game-info p {
+  color: #4fc3f7;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.hint {
+  margin-top: 12px;
+  color: #666;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.hint.warning {
+  color: #e67e22;
+}
+
+/* Game View */
+.game-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.game-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+</style>

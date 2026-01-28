@@ -1,5 +1,7 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "composite": true },
-  "include": ["src"]
+  "files": [],
+  "references": [
+    { "path": "./platform-server" },
+    { "path": "./platform-web" }
+  ]
 }
